@@ -5,6 +5,7 @@
  */
 package syncleus.gremlann;
 
+import com.google.common.base.Function;
 import syncleus.gremlann.activation.ActivationFunction;
 import syncleus.gremlann.activation.HyperbolicTangentActivationFunction;
 import com.tinkerpop.gremlin.process.Traverser;
@@ -14,15 +15,16 @@ import com.tinkerpop.gremlin.structure.Graph;
 import com.tinkerpop.gremlin.structure.Vertex;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import static syncleus.gremlann.Graphs.*;
 
 /**
- *
- * @author me
+ * Brain which is structured as layers
  */
-public class LayerBrain {
+public class LayerBrain extends AbstractBrain {
     public final Vertex meta;
     public static final ActivationFunction defaultActivationFunction = new HyperbolicTangentActivationFunction();
     private final List<List<Vertex>> hidden;
@@ -47,40 +49,39 @@ public class LayerBrain {
         this(v, inputs, new int[]{hidden}, outputs);
     }
 
-    public LayerBrain(Vertex v, int inputs, int[] hidden, int outputs) {
-        this(v, newSignalArray("input", v.graph(), inputs), hidden, outputs);
+    public LayerBrain(Vertex v, int numInputs, int[] numHidden, int numOutputs) {
+        this(v, newSignalArray("input", v.graph(), numInputs), numHidden, numOutputs);
     }
 
-    public LayerBrain(Vertex v, List<Vertex> inputs, int[] hidden, int outputs) {
+    public LayerBrain(Vertex v, List<Vertex> inputs, int[] numHidden, int numOutputs) {
         this.meta = v;
-        this.layers = new ArrayList(2 + hidden.length);
+        this.layers = new ArrayList(2 + numHidden.length);
         this.inputs = addLayer("input", inputs);
         
         //TODO test if already created, if not avoid re-creating
         List<Vertex> previousLayer = this.inputs;
         
-        this.hidden = new ArrayList(hidden.length);
+        this.hidden = new ArrayList(numHidden.length);
         int j = 0;
         
-        for (int layerSize : hidden) {
+        for (int layerSize : numHidden) {
             String hiddenPrefix = "hidden." + j;
             List<Vertex> l = addLayer(hiddenPrefix, newNeuronArray(hiddenPrefix, v.graph(), layerSize));
             this.hidden.add(l);
             connectFully(previousLayer, l);            
         }
         
-        this.outputs = addLayer("output", newNeuronArray("output", v.graph(), outputs));
-                
+        this.outputs = addLayer("output", newNeuronArray("output", v.graph(), numOutputs));             
+        for (Vertex o : this.outputs) 
+            o.property("output", true);
+        
+        
         connectFully(this.hidden.get(this.hidden.size() - 1), this.outputs);
-
-        
-        
+                
         //Add Bias to eveything except inputs:
-        List<Vertex> biases = new ArrayList();
-        traverseNeuronsByIncreasingLayer().filter(n -> !inputs.contains(n.get())).sideEffect(neuron -> {
-            biases.add(addBias(neuron.get(), 1.0));
+        traverseSignaledNeuronsForward().sideEffect(neuron -> {
+            addBias(neuron.get(), 1.0);
         }).iterate();
-        addLayer("bias", biases);
                 
         //TODO add the created neurons as neighbors of meta
         //TODO test if already created, if not avoid re-creating
@@ -112,6 +113,11 @@ public class LayerBrain {
     }
 
     public static double activate(Vertex neuron) {
+        if (isTrue(neuron, "input")) {
+            System.err.println("unnecessary activation: " + neuron);
+            return real(neuron, "signal");
+        }
+        
         double activity = inputActivity(neuron);
         
         set(neuron, "activity", activity);
@@ -143,21 +149,6 @@ public class LayerBrain {
         }
         return r;
     }
-
-    public Vertex addBias(Vertex neuron, double value) {
-        Vertex b = newSignalVertex("bias", meta.graph(), value);
-        set(b, "bias", true);
-        set(b, "activity", 0);
-        newSynapse(b, neuron);
-        return b;
-    }
-    
-//    public void addBias(Iterable<Vertex> v, double value) {        
-//        for (Vertex n : v) {
-//            Vertex b = newSignalVertex("bias", meta.graph(), value);
-//            newSynapse(b, n);
-//        }
-//    }
     
     public ArrayRealVector inputSignals() {
         return signals(0);
@@ -185,7 +176,7 @@ public class LayerBrain {
     }
 
     public void forward() {
-        traverseNeuronsByIncreasingLayer().filter((v) -> !inputs.contains(v.get())).sideEffect(
+        traverseSignaledNeuronsForward().filter((v) -> !inputs.contains(v.get())).sideEffect(
                 n -> activate(n.get())
         ).iterate();
     }
@@ -220,7 +211,7 @@ public class LayerBrain {
     public static List<Vertex> newSignalArray(String label, Graph g, int size) {
         List<Vertex> l = new ArrayList(size);
         for (int i = 0; i < size; i++) {
-            l.add(newSignalVertex(label, g));
+            l.add(newSignalVertex(label + "." + i, g));
         }
         return l;
     }
@@ -236,12 +227,23 @@ public class LayerBrain {
         return v;
     }
 
+    public Vertex addBias(Vertex neuron, double value) {
+        Vertex b = newSignalVertex(neuron.label() + ".bias", meta.graph(), value);
+        set(b, "bias", true);
+        newSynapse(b, neuron);
+        return b;
+    }
+    
     public static Vertex newSignalVertex(String label, Graph g, double initialValue) {
         Vertex v = g.addVertex(label);
         v.property("signal", initialValue);
+        v.property("input", true);
         return v;
     }
 
+
+    
+    
     public GraphTraversal<Vertex, Vertex> traverseNeurons() {
         return traverseNeuronsByIncreasingLayer();
     }
@@ -250,6 +252,12 @@ public class LayerBrain {
         return layers.get(l).out();
     }
 
+    /** forward traverses all neurons which are themselves signaled by other neurons */
+    public GraphTraversal<Vertex, Vertex> traverseSignaledNeuronsForward() {
+        return traverseNeuronsByIncreasingLayer().
+                filter(n -> (!n.get().value("input",false)));
+    }
+            
     public GraphTraversal<Vertex, Vertex> traverseLayersIncreasing() {
         return meta.out("layer").order(increasingLayer);
     }
@@ -265,15 +273,36 @@ public class LayerBrain {
     public GraphTraversal<Vertex, Vertex> traverseNeuronsByDecreasingLayer() {
         return traverseLayersDecreasing().out();
     }
+    
+    public GraphTraversal<Vertex, Vertex> traverseInputNeurons() {
+        //TODO use cached input list with inject, this is for generalization but LayerBrain can accelerate this result
+        return meta.graph().V().has("input", true);
+    }        
+    
+    public GraphTraversal<Vertex, Vertex> traverseOutputNeurons() {
+        //TODO use cached output list with inject, this is for generalization but LayerBrain can accelerate this result
+        return meta.graph().V().has("output", true);
+    }
 
-    public GraphTraversal<Vertex, Vertex> traverseNeuronsBackward() {
-        //return meta.graph().V().filter(v -> (v.get().out().hasNext()==false) ).in().tree();
-        return meta.graph().V().
-                filter(n -> outputs.contains(n.get()) );
-                
-                
-                //as("level").in().jump("level", 4);
+    public void iterateNeuronsBackward(Iterable<Vertex> neurons, Function<Vertex,Boolean> f) {
+        Set<Vertex> nextLayer = new HashSet();
+        for (Vertex n : neurons) {
+            if (f.apply(n)) {                        
+                GraphTraversal<Vertex, Vertex> incoming = n.in("synapse");
+                while (incoming.hasNext()) nextLayer.add(incoming.next());                
+            }
+        }
+        if (!nextLayer.isEmpty())
+            iterateNeuronsBackward(nextLayer, f);
         
+        //return meta.graph().V().filter(v -> (v.get().out().hasNext()==false) ).in().tree();
+        /*return meta.graph().V().union(
+                traverseOutputNeurons(),
+                traverseOutputNeurons().in("synapse")
+        );*/
+        //return meta.graph().inject(outputs.toArray(new Vertex[outputs.size()]));//.in("synapse");
+                
+                      
                 
     }
     

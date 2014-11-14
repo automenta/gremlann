@@ -5,11 +5,14 @@
  */
 package syncleus.gremlann.train;
 
+import com.google.common.base.Function;
 import com.google.common.util.concurrent.AtomicDouble;
+import com.tinkerpop.gremlin.process.graph.GraphTraversal;
 import com.tinkerpop.gremlin.structure.Edge;
 import com.tinkerpop.gremlin.structure.Vertex;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
+import static syncleus.gremlann.Graphs.isTrue;
 import static syncleus.gremlann.Graphs.real;
 import static syncleus.gremlann.Graphs.set;
 import syncleus.gremlann.LayerBrain;
@@ -59,7 +62,7 @@ public class Backprop {
            
            double newWeight = oldWeight + (sourceDelta * learningRate(source) * signal(source));
            
-           System.out.println("  <-- " + source.label() + " " + learningRate(source) + " " + signal(source) + " "+ sourceDelta +  "newWeight " + newWeight + " " + oldWeight);
+           System.out.println("   " + source.label() + " <-- " + neuron.label() + " " + sourceDelta + " " + learningRate(source) + " " + signal(source) + " "+ " newWeight " + newWeight + " " + oldWeight);
            set(synapse, "weight", newWeight);           
            
            newDeltaTrain.addAndGet( newWeight * sourceDelta );
@@ -85,16 +88,16 @@ public class Backprop {
         ArrayRealVector o = brain.outputSignals();
         double distance = o.getDistance(expectedOutput);
         
-        if (train) {
-            brain.traverseNeuronsBackward()                    
-                    .filter(n -> 
-                        //TODO replace these with definite flags
-                        (!n.get().label().startsWith("input")) &&
-                        (!n.get().label().startsWith("layer"))
-                    )
-                    .sideEffect(n -> {                        
-                       backpropagate(n.get()); 
-                    }).iterate();
+        if (train) {            
+            brain.iterateNeuronsBackward(brain.traverseOutputNeurons().toSet(), new Function<Vertex,Boolean>() {
+                @Override
+                public Boolean apply(Vertex f) {
+                    //if (isTrue(f,"input")) return false;
+                    backpropagate(f);
+                    return true;
+                }
+            });
+        
         }
         
         return distance;
