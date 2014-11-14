@@ -14,8 +14,7 @@ import static syncleus.gremlann.Graphs.random;
 import syncleus.gremlann.topology.BipartiteBrain;
 
 /**
- *
- * @author me
+ * TODO subclass implementation that uses synapses; currently this uses a hardcoded weight matrix
  */
 public class Autoencoder extends BipartiteBrain {
 

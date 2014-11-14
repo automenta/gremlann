@@ -113,19 +113,8 @@ abstract public class LayerBrain extends BipartiteBrain {
         return signal;        
     }
     
-
-    
-    
     public ArrayRealVector signals(int layer) {        
         return signals(getLayer(layer));
-    }
-    
-    public ArrayRealVector inputSignals() {
-        return signals(inputs);
-    }
-
-    public ArrayRealVector outputSignals() {
-        return signals(outputs);
     }
 
     /**

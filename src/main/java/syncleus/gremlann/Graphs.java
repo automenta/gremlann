@@ -5,7 +5,6 @@
  */
 package syncleus.gremlann;
 
-import com.tinkerpop.gremlin.structure.Edge;
 import com.tinkerpop.gremlin.structure.Element;
 import com.tinkerpop.gremlin.structure.Vertex;
 import com.tinkerpop.gremlin.structure.util.ElementHelper;
@@ -33,7 +32,7 @@ public class Graphs {
         return e;
     }
 
-    public static Edge set(Edge e, Object... keyValues) {
+    public static Element set(Element e, Object... keyValues) {
         for (String k : ElementHelper.getKeys(keyValues)) {
             e.property(k).remove();
         }

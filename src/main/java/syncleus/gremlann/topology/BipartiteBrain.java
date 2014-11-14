@@ -10,8 +10,9 @@ import com.tinkerpop.gremlin.process.graph.GraphTraversal;
 import com.tinkerpop.gremlin.structure.Vertex;
 import java.util.Comparator;
 import java.util.List;
+import org.apache.commons.math3.linear.ArrayRealVector;
 import syncleus.gremlann.AbstractBrain;
-import static syncleus.gremlann.Graphs.set;
+import static syncleus.gremlann.AbstractBrain.signals;
 
 /**
  * Bipartite brain with only input and output layers
@@ -30,10 +31,32 @@ abstract public class BipartiteBrain extends AbstractBrain {
         this.outputs = outputs;
     }
 
-    public BipartiteBrain input(double... d) {
-        assert (d.length == inputs.size());
+    protected void ensureCorrectInputDimensions(int d) {
+        if (d != getInputCount())
+            throw new IllegalArgumentException("Dimentionality mismatch");
+    }
+    
+    protected void ensureCorrectOutputDimensions(int d) {
+        if (d != getOutputCount())
+            throw new IllegalArgumentException("Dimentionality mismatch");
+    }
+    
+    
+    
+    public ArrayRealVector inputSignals() {
+        return signals(inputs);
+    }
+
+    public ArrayRealVector outputSignals() {
+        return signals(outputs);
+    }
+
+    
+    public BipartiteBrain input(double... d) {        
+        ensureCorrectInputDimensions(d.length);
+        
         for (int i = 0; i < d.length; i++) {
-            set(inputs.get(i), "signal", d[i]);
+            signal(inputs.get(i), d[i]);
         }
         return this;
     }

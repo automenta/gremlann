@@ -7,6 +7,7 @@ package syncleus.gremlann;
 
 import com.tinkerpop.gremlin.process.graph.GraphTraversal;
 import com.tinkerpop.gremlin.structure.Edge;
+import com.tinkerpop.gremlin.structure.Element;
 import com.tinkerpop.gremlin.structure.Graph;
 import com.tinkerpop.gremlin.structure.Vertex;
 import java.util.ArrayList;
@@ -85,12 +86,13 @@ abstract public class AbstractBrain {
     
     
     public static double weight(Edge e) {  return real(e, "weight");    }        
+    public static void weight(Edge e, double newWeight) {  set(e, "weight", newWeight);    }
     
-    public static double signal(Vertex v) {  return real(v, "signal");    }
-    public static void signal(Vertex v, double newValue) {  set(v, "signal", newValue);    }
+    public static double signal(Element v) {  return real(v, "signal");    }
+    public static void signal(Element v, double newValue) {  set(v, "signal", newValue);    }
     
     public static double activity(Vertex v) {  return real(v, "activity",0);    }
-    
+    public static void activity(Vertex v, double newValue) {  set(v, "activity", newValue);    }
 
     public static double normalize(List<Vertex> y) {
         double max=0, min=0;
