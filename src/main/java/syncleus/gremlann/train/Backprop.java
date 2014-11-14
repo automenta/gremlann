@@ -7,15 +7,18 @@ package syncleus.gremlann.train;
 
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.AtomicDouble;
-import com.tinkerpop.gremlin.process.graph.GraphTraversal;
 import com.tinkerpop.gremlin.structure.Edge;
 import com.tinkerpop.gremlin.structure.Vertex;
+import java.util.Set;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
+import static syncleus.gremlann.AbstractBrain.activity;
+import static syncleus.gremlann.AbstractBrain.signal;
+import static syncleus.gremlann.AbstractBrain.weight;
 import static syncleus.gremlann.Graphs.isTrue;
 import static syncleus.gremlann.Graphs.real;
 import static syncleus.gremlann.Graphs.set;
-import syncleus.gremlann.LayerBrain;
+import syncleus.gremlann.topology.LayerBrain;
 import syncleus.gremlann.activation.ActivationFunction;
 
 /**
@@ -38,40 +41,47 @@ public class Backprop {
     
     public ActivationFunction getActivationFunction() { return brain.getActivationFunction(); }
     
-    
-    public static double weight(Edge e) {  return real(e, "weight");    }        
-    public static double deltaTrain(Vertex v) {   return real(v, "deltaTrain", 0);    }
     public double learningRate(Vertex v) {  return real(v, "learningRate", learningRate);    }
-    public static double signal(Vertex v) {  return real(v, "signal");    }
-    public static double activity(Vertex v) {  return real(v, "activity",0);    }
+    public static double deltaTrain(Vertex v) {   return real(v, "deltaTrain",0);    }
     
     public void backpropagate(final Vertex neuron) {
+        
+        //1. calculate deltaTrain based on all the destination synapses
+        if (!isTrue(neuron,"output")) {
+        
+            final AtomicDouble newDeltaTrain = new AtomicDouble(0);
+            
+            neuron.outE("synapse").sideEffect(et -> {
+               Edge synapse = et.get();           
+               Vertex target = synapse.outV().next();
 
-        final AtomicDouble newDeltaTrain = new AtomicDouble(0);
+               newDeltaTrain.addAndGet( weight(synapse) * deltaTrain(target) );           
+            }).iterate();
+
+            double ndt = newDeltaTrain.get() * getActivationFunction().activateDerivative(activity(neuron));
+            set(neuron, "deltaTrain", ndt);
+
+            System.out.println(" delta=" + ndt + " " + newDeltaTrain.get());
+        }
         
-        System.out.println("bp " + neuron.label());
-        
+        System.out.println("bp " + neuron.label() + " " + neuron.inE("synapse").toSet().size() + "|" +neuron.outE("synapse").toSet().size() + " d=" + real(neuron,"deltaTrain"));        
+
+        //2. Back-propagates the training data to all the incoming synapses
         neuron.inE("synapse").sideEffect(et -> {
-           Edge synapse = et.get();
-           
-           Vertex source = synapse.outV().next();
-                      
-           double sourceDelta = deltaTrain(source);
-           
-           double oldWeight = weight(synapse);
-           
-           double newWeight = oldWeight + (sourceDelta * learningRate(source) * signal(source));
-           
-           System.out.println("   " + source.label() + " <-- " + neuron.label() + " " + sourceDelta + " " + learningRate(source) + " " + signal(source) + " "+ " newWeight " + newWeight + " " + oldWeight);
-           set(synapse, "weight", newWeight);           
-           
-           newDeltaTrain.addAndGet( newWeight * sourceDelta );
-           
+            Edge synapse = et.get();
+            Vertex source = synapse.outV().next();
+            
+            double curWeight = weight(synapse);
+            double sourceDelta = deltaTrain(neuron); 
+            
+            double newWeight = curWeight + (sourceDelta * learningRate(source) * signal(neuron));
+            set(synapse, "weight", newWeight);            
+            System.out.println("  " + synapse + " " + curWeight + " -> " + newWeight + " "+ sourceDelta + " " + deltaTrain(neuron));
         }).iterate();
-
-        double ndt = newDeltaTrain.get() * getActivationFunction().activateDerivative(activity(neuron));
-
-        set(neuron, "deltaTrain", ndt);
+        
+        
+        
+        
     }
 
     /**
@@ -88,8 +98,20 @@ public class Backprop {
         ArrayRealVector o = brain.outputSignals();
         double distance = o.getDistance(expectedOutput);
         
-        if (train) {            
-            brain.iterateNeuronsBackward(brain.traverseOutputNeurons().toSet(), new Function<Vertex,Boolean>() {
+        if (train) {
+            Set<Vertex> outputs = brain.traverseOutputNeurons().toSet();
+            
+            int j = 0;
+            for (Vertex outputNeuron : outputs) {
+                double expected = expectedOutput.getEntry(j);
+                double outputSignal = signal(outputNeuron);
+                double dt = (expected - outputSignal) * getActivationFunction().activateDerivative(activity(outputNeuron));
+                        
+                set(outputNeuron,"deltaTrain",dt);                
+                j++;
+            }
+            
+            brain.iterateNeuronsBackward(outputs, new Function<Vertex,Boolean>() {
                 @Override
                 public Boolean apply(Vertex f) {
                     //if (isTrue(f,"input")) return false;

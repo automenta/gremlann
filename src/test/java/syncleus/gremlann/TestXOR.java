@@ -3,6 +3,7 @@ package syncleus.gremlann;
 import com.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
+import syncleus.gremlann.model.Perceptron;
 import syncleus.gremlann.train.Backprop;
 
 public class TestXOR {
@@ -12,7 +13,7 @@ public class TestXOR {
 
         TinkerGraph g = TinkerGraph.open();
                 
-        LayerBrain b = new LayerBrain(g.addVertex(), 3,2,1);
+        Perceptron b = new Perceptron(g.addVertex(), 3,2,1);
 
         Backprop training = new Backprop(b);
         double e = training.associate(new double[] { 1,0,0 }, new double[] { 1 }, true);

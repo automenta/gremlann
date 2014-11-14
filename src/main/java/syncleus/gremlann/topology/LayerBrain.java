@@ -3,18 +3,15 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package syncleus.gremlann;
+package syncleus.gremlann.topology;
 
 import com.google.common.base.Function;
 import syncleus.gremlann.activation.ActivationFunction;
-import syncleus.gremlann.activation.HyperbolicTangentActivationFunction;
-import com.tinkerpop.gremlin.process.Traverser;
 import com.tinkerpop.gremlin.process.graph.GraphTraversal;
 import com.tinkerpop.gremlin.structure.Edge;
 import com.tinkerpop.gremlin.structure.Graph;
 import com.tinkerpop.gremlin.structure.Vertex;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -24,26 +21,12 @@ import static syncleus.gremlann.Graphs.*;
 /**
  * Brain which is structured as layers
  */
-public class LayerBrain extends AbstractBrain {
-    public final Vertex meta;
-    public static final ActivationFunction defaultActivationFunction = new HyperbolicTangentActivationFunction();
-    private final List<List<Vertex>> hidden;
-    private final List<Vertex> inputs;
-    private final List<Vertex> outputs;
-    private final List<Vertex> layers;    
+abstract public class LayerBrain extends BipartiteBrain {
     
-    public static final Comparator<Traverser<Vertex>> increasingLayer = new Comparator<Traverser<Vertex>>() {
-        @Override
-        public int compare(Traverser<Vertex> o1, Traverser<Vertex> o2) {
-            return Integer.compare((int) o1.get().value("layerNum"), (int) o2.get().value("layerNum"));
-        }
-    };
-    public static final Comparator<Traverser<Vertex>> decreasingLayer = new Comparator<Traverser<Vertex>>() {
-        @Override
-        public int compare(Traverser<Vertex> o1, Traverser<Vertex> o2) {
-            return increasingLayer.compare(o2, o1);
-        }
-    };
+    protected final List<List<Vertex>> hidden;
+    protected final List<Vertex> layers;    
+    
+
 
     public LayerBrain(Vertex v, int inputs, int hidden, int outputs) {
         this(v, inputs, new int[]{hidden}, outputs);
@@ -54,9 +37,9 @@ public class LayerBrain extends AbstractBrain {
     }
 
     public LayerBrain(Vertex v, List<Vertex> inputs, int[] numHidden, int numOutputs) {
-        this.meta = v;
+        super(v, inputs, newNeuronArray("output", v.graph(), numOutputs));
+        
         this.layers = new ArrayList(2 + numHidden.length);
-        this.inputs = addLayer("input", inputs);
         
         //TODO test if already created, if not avoid re-creating
         List<Vertex> previousLayer = this.inputs;
@@ -71,11 +54,9 @@ public class LayerBrain extends AbstractBrain {
             connectFully(previousLayer, l);            
         }
         
-        this.outputs = addLayer("output", newNeuronArray("output", v.graph(), numOutputs));             
+        this.outputs = addLayer("output", this.outputs);             
         for (Vertex o : this.outputs) 
             o.property("output", true);
-        
-        
         connectFully(this.hidden.get(this.hidden.size() - 1), this.outputs);
                 
         //Add Bias to eveything except inputs:
@@ -88,15 +69,16 @@ public class LayerBrain extends AbstractBrain {
         //TODO allow implicit bias, reducing # of vertices/edges needed
     }
 
+    
     public List<Vertex> addLayer(String id, List<Vertex> neurons) {
         int j = 0;
         Vertex l = meta.graph().addVertex("layer." + id);
         l.property("layerNum", layers.size());
-        layers.add(l);
         meta.addEdge("layer", l);
         for (Vertex i : neurons) {
             l.addEdge("" + (j++), i);
         }
+        layers.add(l);
         return neurons;
     }
 
@@ -112,7 +94,7 @@ public class LayerBrain extends AbstractBrain {
         return signalSum;
     }
 
-    public static double activate(Vertex neuron) {
+    public double activate(Vertex neuron) {
         if (isTrue(neuron, "input")) {
             System.err.println("unnecessary activation: " + neuron);
             return real(neuron, "signal");
@@ -123,39 +105,27 @@ public class LayerBrain extends AbstractBrain {
         set(neuron, "activity", activity);
         
         //TODO select activation function from according to stored property in the neuron
-        double signal = defaultActivationFunction.activate(activity);
+        double signal = getActivationFunction().activate(activity);
         set(neuron, "signal", signal);
+        
+        //System.out.println("activate: " + neuron.label() + " " + activity + " " + signal);
         
         return signal;        
     }
     
 
-    public LayerBrain input(boolean forward, double... d) {
-        assert (d.length == inputs.size());
-        for (int i = 0; i < d.length; i++) {
-            set(inputs.get(i), "signal", d[i]);
-        }
-        if (forward) forward();
-        return this;
-    }
-
-    public ArrayRealVector signals(int layer) {
-        List<Vertex> ll = getLayer(layer);
-        ArrayRealVector r = new ArrayRealVector(ll.size());
-        double[] d = r.getDataRef();
-        int j = 0;
-        for (Vertex o : ll) {
-            d[j++] = ((Number)o.value("signal")).doubleValue();
-        }
-        return r;
+    
+    
+    public ArrayRealVector signals(int layer) {        
+        return signals(getLayer(layer));
     }
     
     public ArrayRealVector inputSignals() {
-        return signals(0);
+        return signals(inputs);
     }
 
     public ArrayRealVector outputSignals() {
-        return signals(hidden.size() + 1);
+        return signals(outputs);
     }
 
     /**
@@ -175,8 +145,17 @@ public class LayerBrain extends AbstractBrain {
         return getLayer(l).size();
     }
 
+    
+    public LayerBrain input(boolean forward, double... d) {
+        super.input(d);
+        if (forward) forward();
+        return this;
+    }
+    
+    
+    
     public void forward() {
-        traverseSignaledNeuronsForward().filter((v) -> !inputs.contains(v.get())).sideEffect(
+        traverseSignaledNeuronsForward().sideEffect(
                 n -> activate(n.get())
         ).iterate();
     }
@@ -189,56 +168,13 @@ public class LayerBrain extends AbstractBrain {
         }
     }
 
-    public static Edge newSynapse(Vertex source, Vertex target) {
-        Edge s = source.addEdge("synapse", target);
-        //TODO multiple synapse initial weight methods
-        //    private static final Random RANDOM = new Random();
-        final double RANGE = 2.0;
-        final double OFFSET = -1.0;
-        final double SCALE = 0.1;
-        set(s, "weight", ((Math.random() * RANGE) + OFFSET) * SCALE);
-        return s;
-    }
 
-    public static List<Vertex> newNeuronArray(String prefix, Graph g, int size) {
-        List<Vertex> l = new ArrayList(size);
-        for (int i = 0; i < size; i++) {
-            l.add(newNeuronVertex(prefix + "." + i, g));
-        }
-        return l;
-    }
-
-    public static List<Vertex> newSignalArray(String label, Graph g, int size) {
-        List<Vertex> l = new ArrayList(size);
-        for (int i = 0; i < size; i++) {
-            l.add(newSignalVertex(label + "." + i, g));
-        }
-        return l;
-    }
-
-    public static Vertex newSignalVertex(String label, Graph g) {
-        return newSignalVertex(label, g, 0);
-    }
-
-    public static Vertex newNeuronVertex(String label, Graph g) {
-        Vertex v = g.addVertex(label);
-        v.property("activity", 0);
-        v.property("signal", 0);
-        return v;
-    }
 
     public Vertex addBias(Vertex neuron, double value) {
         Vertex b = newSignalVertex(neuron.label() + ".bias", meta.graph(), value);
         set(b, "bias", true);
         newSynapse(b, neuron);
         return b;
-    }
-    
-    public static Vertex newSignalVertex(String label, Graph g, double initialValue) {
-        Vertex v = g.addVertex(label);
-        v.property("signal", initialValue);
-        v.property("input", true);
-        return v;
     }
 
 
@@ -306,12 +242,9 @@ public class LayerBrain extends AbstractBrain {
                 
     }
     
-    public void printAllNeurons() {
-        traverseNeurons().sideEffect(n -> printVertex(n.get())).properties().sideEffect(prop -> System.out.println("  " + prop)).iterate();
-    }
 
-    public ActivationFunction getActivationFunction() {
-        return defaultActivationFunction;
-    }
+    abstract public ActivationFunction getActivationFunction();
+
+
     
 }
