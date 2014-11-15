@@ -241,12 +241,11 @@ public class SomBrain extends BipartiteBrain {
             GraphTraversal<Vertex, Edge> edges = neuron.inE("synapse");
             while (edges.hasNext()) {
                 Edge synapse = edges.next();
-                Vertex sourceInput = synapse.inV().next();
-                
+                Vertex sourceInput = synapse.outV().next();
                 //source.setWeight(source.getWeight() + (learningRate * neighborhoodAdjustment * (source.getInput() - source.getWeight())));
 
                double w = Synapse.weight(synapse);
-                Synapse.weight(synapse, w + (learningRate * neighborhoodAdjustment * (Neuron.signal(sourceInput) - w)));
+               Synapse.weight(synapse, w + (learningRate * neighborhoodAdjustment * (Neuron.signal(sourceInput) - w)));
             }
             
             return true;
@@ -277,7 +276,8 @@ public class SomBrain extends BipartiteBrain {
         
         // calculate the activity function and reset the result as the output        
         double s = getActivationFunction().activate(activity);        
-        Neuron.signal(v, s);        
+        Neuron.signal(v, s);      
+        
         return s;        
     }    
 

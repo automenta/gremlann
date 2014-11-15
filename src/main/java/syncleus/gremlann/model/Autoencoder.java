@@ -13,20 +13,23 @@ import syncleus.gremlann.Graphs;
 import static syncleus.gremlann.Graphs.random;
 import syncleus.gremlann.Neuron;
 import syncleus.gremlann.topology.BipartiteBrain;
+import syncleus.gremlann.topology.adjacency.Adjacency.IntegerIndexedAdjacency;
+import syncleus.gremlann.topology.adjacency.RealMatrixAdjacency;
 
 /**
  * TODO subclass implementation that uses synapses; currently this uses a hardcoded weight matrix
  */
 public class Autoencoder extends BipartiteBrain {
 
-    public double[][] W;
-    public double[] hbias;
-    public double[] vbias;    
-    private double[] tilde_x;
-    //private double[] y;
-    //private double[] z;
-    private double[] L_vbias;
-    private double[] L_hbias;
+    /** weights between input and output layers */
+    IntegerIndexedAdjacency<Double> W;
+    
+    public double[] outputBias;
+    public double[] inputBias;
+    
+    transient private double[] tilde_x;
+    transient private double[] L_vbias;
+    transient private double[] L_hbias;
 
     public Autoencoder(Vertex v, int inputs, int outputs) {
         this(v, newSignalArray("input", v.graph(), inputs), newNeuronArray("output", v.graph(), outputs));        
@@ -36,35 +39,35 @@ public class Autoencoder extends BipartiteBrain {
         super(v, inputs, outputs);
         
 
-        this.W = new double[this.getOutputCount()][this.getInputCount()];
+        this.W = new RealMatrixAdjacency(inputs, outputs);
         double a = 1.0 / this.getInputCount();
 
         for (int i = 0; i < this.getOutputCount(); i++) {
             for (int j = 0; j < this.getInputCount(); j++) {
-                weight(i,j, uniform(-a, a));
+                weight(j,i, uniform(-a, a));
             }
         }
 
 
-        this.hbias = new double[this.getOutputCount()];
+        this.outputBias = new double[this.getOutputCount()];
         for (int i = 0; i < this.getOutputCount(); i++) {
-            this.hbias[i] = 0;
+            this.outputBias[i] = 0;
         }
 
 
-        this.vbias = new double[this.getInputCount()];
+        this.inputBias = new double[this.getInputCount()];
         for (int i = 0; i < this.getInputCount(); i++) {
-            this.vbias[i] = 0;
+            this.inputBias[i] = 0;
         }
 
         
     }
 
     public double weight(int input, int hidden) {
-        return W[input][hidden];
+        return W.get(input, hidden);
     }
     public void weight(int input, int hidden, double value) {
-        W[input][hidden] = value;
+        W.set(input, hidden, value);
     }
 
     public double uniform(final double min, final double max) {
@@ -111,9 +114,9 @@ public class Autoencoder extends BipartiteBrain {
             double yi = 0;
                         
             for (int j = 0; j < getInputCount(); j++) {
-                yi += weight(i, j) * x[j];
+                yi += weight(j, i) * x[j];
             }
-            yi += hbias[i];
+            yi += outputBias[i];
             
             if (sigmoid)
                 yi = sigmoid(yi);
@@ -135,10 +138,10 @@ public class Autoencoder extends BipartiteBrain {
             double zi = 0;
 
             for (int j = 0; j < vy.getDimension(); j++) {
-                zi += weight(j,i) * vy.getEntry(j);
+                zi += weight(i, j) * vy.getEntry(j);
             }
             
-            zi += vbias[i];
+            zi += inputBias[i];
             Neuron.signal(z.get(i), sigmoid(zi));
         }
     }
@@ -146,6 +149,7 @@ public class Autoencoder extends BipartiteBrain {
     public double train(double[] v, double lr, double corruption_level) {
         return train(new ArrayRealVector(v), lr, corruption_level);
     }
+    
     public double train(RealVector v, double lr, double corruption_level) {
         double[] x = Graphs.doubles(v);
         
@@ -164,27 +168,27 @@ public class Autoencoder extends BipartiteBrain {
         encode(tilde_x, getOutputs(), true, false);
         get_reconstructed_input(getOutputs(), getInputs());
 
-        // vbias
+        // inputBias
         for (int i = 0; i < getInputCount(); i++) {
             L_vbias[i] = x[i] - Neuron.signal(inputs.get(i));
-            vbias[i] += lr * L_vbias[i];
+            inputBias[i] += lr * L_vbias[i];
         }
 
-        // hbias
+        // outputBias
         for (int i = 0; i < getOutputCount(); i++) {
             L_hbias[i] = 0;
             for (int j = 0; j < getInputCount(); j++) {
-                L_hbias[i] += W[i][j] * L_vbias[j];
+                L_hbias[i] += weight(j, i) * L_vbias[j];
             }
             double yi = outputSignal(i);
             L_hbias[i] *= yi * (1 - yi);
-            hbias[i] += lr * L_hbias[i];
+            outputBias[i] += lr * L_hbias[i];
         }
 
         // W
         for (int i = 0; i < getOutputCount(); i++) {
             for (int j = 0; j < getInputCount(); j++) {
-                W[i][j] += lr * (L_hbias[i] * tilde_x[j] + L_vbias[j] * Neuron.signal(outputs.get(i)));
+                weight(j, i, weight(j, i) + lr * (L_hbias[i] * tilde_x[j] + L_vbias[j] * Neuron.signal(outputs.get(i))));
             }
         }
                 

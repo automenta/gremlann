@@ -52,8 +52,9 @@ public class TestAutoencoder {
                         
                     }
                 }
-            }           
-            System.out.println(totalError);
+            } 
+            
+            //System.out.println(totalError);
             totalErrors.add(totalError);
         }
         

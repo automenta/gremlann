@@ -180,7 +180,7 @@ abstract public class LayerBrain extends BipartiteBrain {
     /** forward traverses all neurons which are themselves signaled by other neurons */
     public GraphTraversal<Vertex, Vertex> traverseSignaledNeuronsForward() {
         return traverseNeuronsByIncreasingLayer().
-                filter(n -> (!n.get().value("input",false)));
+                filter(n -> (n!=null) && (!n.get().value("input",false)));
     }
             
     public GraphTraversal<Vertex, Vertex> traverseLayersIncreasing() {
