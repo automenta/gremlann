@@ -61,10 +61,10 @@ public class Backprop {
             double ndt = newDeltaTrain.get() * getActivationFunction().activateDerivative(activity(neuron));
             set(neuron, "deltaTrain", ndt);
 
-            System.out.println(" delta=" + ndt + " " + newDeltaTrain.get());
+            //System.out.println(" delta=" + ndt + " " + newDeltaTrain.get());
         }
         
-        System.out.println("bp " + neuron.label() + " " + neuron.inE("synapse").toSet().size() + "|" +neuron.outE("synapse").toSet().size() + " d=" + real(neuron,"deltaTrain"));        
+        //System.out.println("bp " + neuron.label() + " " + neuron.inE("synapse").toSet().size() + "|" +neuron.outE("synapse").toSet().size() + " d=" + real(neuron,"deltaTrain"));        
 
         //2. Back-propagates the training data to all the incoming synapses
         neuron.inE("synapse").sideEffect(et -> {
@@ -76,7 +76,8 @@ public class Backprop {
             
             double newWeight = curWeight + (sourceDelta * learningRate(source) * signal(neuron));
             set(synapse, "weight", newWeight);            
-            System.out.println("  " + synapse + " " + curWeight + " -> " + newWeight + " "+ sourceDelta + " " + deltaTrain(neuron));
+            
+            //System.out.println("  " + synapse + " " + curWeight + " -> " + newWeight + " "+ sourceDelta + " " + deltaTrain(neuron));
         }).iterate();
         
         

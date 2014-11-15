@@ -5,15 +5,11 @@
  */
 package syncleus.gremlann.model.som;
 
-import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Table;
-import com.tinkerpop.gremlin.process.graph.GraphTraversal;
-import com.tinkerpop.gremlin.structure.Edge;
 import com.tinkerpop.gremlin.structure.Vertex;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.commons.math3.linear.ArrayRealVector;
@@ -22,24 +18,30 @@ import syncleus.gremlann.Graphs;
 import static syncleus.gremlann.Graphs.set;
 import static syncleus.gremlann.Graphs.the;
 import syncleus.gremlann.Neuron;
-import syncleus.gremlann.Synapse;
+import static syncleus.gremlann.Neuron.signal;
 import syncleus.gremlann.activation.ActivationFunction;
 import syncleus.gremlann.activation.ActivationFunctions;
 import syncleus.gremlann.activation.SqrtActivationFunction;
 import syncleus.gremlann.topology.BipartiteBrain;
+import syncleus.gremlann.topology.adjacency.AdjacencyVisitor;
+import syncleus.gremlann.topology.adjacency.TableAdjacency;
 
 /**
  *
  */
-public class SomBrain extends BipartiteBrain {
+public class SOM extends BipartiteBrain {
     
     protected Class<? extends ActivationFunction> activationFunctionClass = SqrtActivationFunction.class;
     protected SomModel model;
     protected RealVector upperBounds, lowerBounds;
     protected int iterationsTrained;
+    TableAdjacency<Double> weight;
     
-    public SomBrain(Vertex v, SomModel model, int dimension, int inputCount) {        
+    public SOM(Vertex v, SomModel model, int dimension, int inputCount) {        
         super(v, newSignalArray("input", v.graph(), inputCount), new ArrayList());
+        
+        
+        weight = new TableAdjacency<Double>();                
         
         setUpperBounds( new ArrayRealVector(dimension) );
         setLowerBounds( new ArrayRealVector(dimension) );
@@ -47,6 +49,7 @@ public class SomBrain extends BipartiteBrain {
         setModel(model);
     }
 
+    
 
     
     private void updateBounds(final RealVector position) {
@@ -102,11 +105,10 @@ public class SomBrain extends BipartiteBrain {
         outputs.add(output);
         
         setPosition(output, position);
-        
+                
         // connect all inputs to the new neuron
         for (final Vertex input : this.getInputs()) {            
-            Edge s = input.addEdge("synapse", output);
-            set(s, "weight", getRandomInitialSynapseWeight() );
+            weight.set(input, output, getRandomInitialSynapseWeight());
         }
         
         return output;
@@ -170,28 +172,6 @@ public class SomBrain extends BipartiteBrain {
         return getPositions(true);
     }
     
-//    /**
-//     * Gets the current output at the specified position in the output lattice if
-// the position does not have a AbstractSomNeuron associated with it then it throws
-// an exception.
-//     *
-//     * @param position position in the output lattice of the output you wish to
-//     *                 retrieve.
-//     * @return The value of the specified AbstractSomNeuron, or null if there is
-// no AbstractSomNeuron associated with the given position.
-//     * @throws IllegalArgumentException if position does not exist.
-//     * @since 2.0
-//     */
-//    @Override
-//    public final double getOutput(final RealVector position) {
-//        final ON outputNeuron = this.outputs.get(position);
-//        if (outputNeuron == null)
-//            throw new IllegalArgumentException("position does not exist");
-//
-//        outputNeuron.tick();
-//        return outputNeuron.getOutput();
-//    }
-
     /**
      * Obtains the BMU (Best Matching Unit) for the current input reset.
      * This will also train against the current input.
@@ -217,6 +197,7 @@ public class SomBrain extends BipartiteBrain {
         
         RealVector bestMatchingUnitVector = getPosition(bestMatchingUnit);
         
+        
         if (train)
             this.train(bestMatchingUnitVector);
 
@@ -230,24 +211,30 @@ public class SomBrain extends BipartiteBrain {
      *
      * @since 2.0
      */
-    public boolean train(final Vertex neuron, final RealVector bestMatchPoint, final double neighborhoodRadius) {
+    public boolean train(final Vertex output, final RealVector bestMatchPoint, final double neighborhoodRadius) {
         
-        final double currentDistance = getPosition(neuron).getDistance(bestMatchPoint);        
+        final double currentDistance = getPosition(output).getDistance(bestMatchPoint);        
         final double learningRate = getModel().learningRateFunction(this);
         
         if (currentDistance < neighborhoodRadius) {
             
             final double neighborhoodAdjustment = getModel().neighborhoodFunction(this, currentDistance);            
-            GraphTraversal<Vertex, Edge> edges = neuron.inE("synapse");
-            while (edges.hasNext()) {
-                Edge synapse = edges.next();
-                Vertex sourceInput = synapse.outV().next();
-                //source.setWeight(source.getWeight() + (learningRate * neighborhoodAdjustment * (source.getInput() - source.getWeight())));
+            double totalChange = weight.forEachInput(output, new AdjacencyVisitor<Double,Double>() {
 
-               double w = Synapse.weight(synapse);
-               Synapse.weight(synapse, w + (learningRate * neighborhoodAdjustment * (Neuron.signal(sourceInput) - w)));
-            }
-            
+                @Override
+                public Double adjacency(Vertex source, Vertex output, Double currentWeight, Double totalChange) {
+                    double sourceSignal = signal(source);
+                    
+                    double weightDelta = (learningRate * neighborhoodAdjustment * sourceSignal - currentWeight);
+                    double newWeight = currentWeight + weightDelta;
+                   
+                    weight.setDirect(source, output, newWeight);
+                    
+                    return totalChange + weightDelta;
+                }
+                
+            }, 0d);
+                        
             return true;
         }
         return false;
@@ -259,24 +246,23 @@ public class SomBrain extends BipartiteBrain {
      *
      * @since 2.0
      */    
-    public double propagateOutput(Vertex v) {
+    public double propagateOutput(Vertex output) {
         // calculate the current input activity        
         
-        double activity = 0;
+        double activity = weight.forEachInput(output, new AdjacencyVisitor<Double, Double>() {
+            @Override
+            public Double adjacency(Vertex input, Vertex output, Double weight, Double accumulatedActivity) {
+                double synapseActivity = signal(input) * weight;
+                return accumulatedActivity + Math.pow(synapseActivity - weight, 2.0);
+            }
+        }, 0d);
         
-        GraphTraversal<Vertex, Edge> sources = v.inE("synapse");
-        while (sources.hasNext()) {
-            Edge source = sources.next();
-            double a = Synapse.propagate(source);
-            //activity += Math.pow(source.getSignal() - source.getWeight(), 2.0);
-            activity += Math.pow(a - Synapse.weight(source), 2.0);
-        }
-
-        Neuron.activity(v, activity);
+        
+        Neuron.activity(output, activity);
         
         // calculate the activity function and reset the result as the output        
         double s = getActivationFunction().activate(activity);        
-        Neuron.signal(v, s);      
+        Neuron.signal(output, s);      
         
         return s;        
     }    
@@ -291,27 +277,19 @@ public class SomBrain extends BipartiteBrain {
     }
 
     
-    /**
-     * Applies an input vector to the input nodes, according to their natural ordering
-     * @param v 
-     */
-    public void setInput(final RealVector v) {         setInput(v.toArray());     }
-    
-    public void setInput(final ArrayRealVector v) {        setInput(v.getDataRef());    }
+
 
     
-    @Deprecated public void setInput(final double... d) {
-        input(d);
-    }
-    
     public RealVector getPosition(Vertex output) {        
-        double[] p = the(output, SomOutput.class).getPosition();
-        if (p.length!=getDimension())
+        double[] p = the(output, SomOutput.class).getDataRef();
+        if (p.length!=getDimension()) {
             p = new double[ getDimension() ];
+        }
         return new ArrayRealVector(p);
     }
+    
     public void setPosition(Vertex output, RealVector position) {
-        the(output, SomOutput.class).setPosition(position);
+        set(output, SomOutput.class, new SomOutput(position));
     }
     
     
@@ -338,33 +316,36 @@ public class SomBrain extends BipartiteBrain {
      * @return the weight vectors of each output in the output lattice
      * @since 2.0
      */
-    public final Table<Vertex,Vertex,Double> getOutputWeights() {
-        // iterate through the output lattice
+    public final Table<Vertex,Vertex,Double> getOutputWeights() {        
         
-        int numInputs = getInputCount();
+        //if (weight instanceof TableAdjacency) {            
+            return ((TableAdjacency)weight).getTable();
+        //}
         
-        //TODO check dimensions on this:
-        Table<Vertex,Vertex,Double> t = HashBasedTable.create(numInputs, numInputs);
-        
-        final HashMap<RealVector, double[]> weightVectors = new HashMap();
-        for (final Vertex currentNeuron : getOutputs()) {
-            
-            final double[] weightVector = new double[numInputs];            
-            final RealVector currentPoint = getPosition(currentNeuron);
-            
-            // iterate through the weight vectors of the current neuron
-            GraphTraversal<Vertex, Edge> edges = currentNeuron.inE();
-            while (edges.hasNext()) {
-                final Edge s = edges.next();
-                t.put(currentNeuron, s.outV().next(), Synapse.weight(s));                
-            }
-            
-            // add the current weight vector to the map
-            weightVectors.put(currentPoint, weightVector);
-        }
-        
-        //TODO make immutable
-        return t;
+//        int numInputs = getInputCount();
+//        
+//        //TODO check dimensions on this:
+//        Table<Vertex,Vertex,Double> t = HashBasedTable.create(numInputs, numInputs);
+//        
+//        final HashMap<RealVector, double[]> weightVectors = new HashMap();
+//        for (final Vertex currentNeuron : getOutputs()) {
+//            
+//            final double[] weightVector = new double[numInputs];            
+//            final RealVector currentPoint = getPosition(currentNeuron);
+//            
+//            // iterate through the weight vectors of the current neuron
+//            GraphTraversal<Vertex, Edge> edges = currentNeuron.inE();
+//            while (edges.hasNext()) {
+//                final Edge s = edges.next();
+//                t.put(currentNeuron, s.outV().next(), Synapse.weight(s));                
+//            }
+//            
+//            // add the current weight vector to the map
+//            weightVectors.put(currentPoint, weightVector);
+//        }
+//        
+//        //TODO make immutable
+//        return t;
     }
     /**
      * Determine the current radius of the neighborhood which will be centered

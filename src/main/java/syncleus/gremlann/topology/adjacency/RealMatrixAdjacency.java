@@ -8,6 +8,7 @@ package syncleus.gremlann.topology.adjacency;
 import com.tinkerpop.gremlin.structure.Graph;
 import com.tinkerpop.gremlin.structure.Vertex;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
@@ -26,6 +27,8 @@ public class RealMatrixAdjacency implements Adjacency<Double>, IntegerIndexedAdj
     public final HashMap<Vertex, Integer> outputIndex;
     public final RealMatrix matrix;
 
+    
+    
     public RealMatrixAdjacency(List<Vertex> input, List<Vertex> output) {
         this(input, output, new Array2DRowRealMatrix(input.size(), output.size()));
     }
@@ -35,6 +38,8 @@ public class RealMatrixAdjacency implements Adjacency<Double>, IntegerIndexedAdj
         this.input = input;
         this.output = output;
         this.matrix = matrix;
+        
+        reset(Double.NaN);
         
         inputIndex = new HashMap(input.size());
         int j = 0;
@@ -52,6 +57,28 @@ public class RealMatrixAdjacency implements Adjacency<Double>, IntegerIndexedAdj
         }
     }
 
+    /** resets all matrix entries to default value.
+        NaN can be used to indicate non-adjacency, missing or unspecified value */
+    protected void reset(final double defaultValue) {
+        fill(matrix, defaultValue);
+    }
+    
+    public static void fill(final RealMatrix m, final double value) {
+        if (m instanceof Array2DRowRealMatrix) {
+            Array2DRowRealMatrix a = (Array2DRowRealMatrix)m;
+            for (double[] n : a.getDataRef() )
+                Arrays.fill(n, value);
+        }
+        else {
+            for (int i = 0; i < m.getRowDimension(); i++) {
+                for (int j = 0; j < m.getColumnDimension(); j++) {
+                    m.setEntry(i, j, value);
+                }
+            }
+            
+        }
+    }
+    
     @Override
     public List<Vertex> getInputs() {
         return input;
@@ -70,7 +97,10 @@ public class RealMatrixAdjacency implements Adjacency<Double>, IntegerIndexedAdj
     
     @Override
     public Double get(final Vertex source, final Vertex target) {
-        return get(inputIndex.get(source), outputIndex.get(target));
+        double d = get(inputIndex.get(source), outputIndex.get(target));
+        if (Double.isNaN(d))
+            return null;
+        return d;
     }
 
     @Override

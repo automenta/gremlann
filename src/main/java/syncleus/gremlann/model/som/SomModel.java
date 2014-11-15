@@ -22,7 +22,7 @@ public interface SomModel extends Serializable {
      * its distance from the BMU.
      * @since 2.0
      */
-    public double neighborhoodFunction(final SomBrain som, final double distanceFromBest);
+    public double neighborhoodFunction(final SOM som, final double distanceFromBest);
 
     /**
      * Determine the current radius of the neighborhood which will be centered
@@ -31,7 +31,7 @@ public interface SomModel extends Serializable {
      * @return the current radius of the neighborhood.
      * @since 2.0
      */
-    public double neighborhoodRadiusFunction(SomBrain som);
+    public double neighborhoodRadiusFunction(SOM som);
 
     /**
      * Determines the current learning rate for the network.
@@ -39,6 +39,6 @@ public interface SomModel extends Serializable {
      * @return the current learning rate for the network.
      * @since 2.0
      */
-    public double learningRateFunction(SomBrain som);
+    public double learningRateFunction(SOM som);
     
 }

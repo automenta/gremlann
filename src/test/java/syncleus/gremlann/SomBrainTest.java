@@ -19,7 +19,7 @@ import static org.junit.Assert.assertNotNull;
 import org.junit.Before;
 import org.junit.Test;
 import syncleus.gremlann.model.som.SomExponentialDecay;
-import syncleus.gremlann.model.som.SomBrain;
+import syncleus.gremlann.model.som.SOM;
 
 public class SomBrainTest {
 
@@ -34,7 +34,7 @@ public class SomBrainTest {
     @Test
     public void testEmptySOM() throws Throwable {
         try {
-            SomBrain som = new SomBrain(graph.addVertex(), new SomExponentialDecay(10, 0.1), 3, 4);
+            SOM som = new SOM(graph.addVertex(), new SomExponentialDecay(10, 0.1), 3, 4);
 
             assertNotNull(som);
 
@@ -54,7 +54,7 @@ public class SomBrainTest {
             Table w = som.getOutputWeights();
             assertEquals(8, w.size());
 
-            som.setInput(0.75,0.25,0.33,0.10);
+            som.input(0.75,0.25,0.33,0.10);
 
             assertEquals(3, som.getBestMatchingUnit(true).getDimension());
 
@@ -85,7 +85,7 @@ public class SomBrainTest {
         final int INPUT_DIMENSIONS = 3;
 
         //initialize brain with 3d input and 2d output
-        SomBrain brain = new SomBrain(graph.addVertex(), new SomExponentialDecay(TRAIN_ITERATIONS, LEARNING_RATE), OUTPUT_DIMENSIONS, INPUT_DIMENSIONS);
+        SOM brain = new SOM(graph.addVertex(), new SomExponentialDecay(TRAIN_ITERATIONS, LEARNING_RATE), OUTPUT_DIMENSIONS, INPUT_DIMENSIONS);
         
 
         //create the output latice
@@ -98,7 +98,7 @@ public class SomBrainTest {
         
         //run through RANDOM training data
         for (int iteration = 0; iteration < TRAIN_ITERATIONS; iteration++) {
-            brain.setInput( random.nextDouble(), random.nextDouble(), random.nextDouble() );
+            brain.input( random.nextDouble(), random.nextDouble(), random.nextDouble() );
             brain.getBestMatchingUnit(true);
         }
         
@@ -118,7 +118,7 @@ public class SomBrainTest {
             outText.append("close color offsets... red: ").append(redOffset).append(", green: ").append(greenOffset).append(", blue: ").append(blueOffset).append('\n');
 
             //get the location of a color within the block
-            brain.setInput(
+            brain.input(
                     redOffset + (random.nextDouble() * blockSize),
                     greenOffset + (random.nextDouble() * blockSize),
                     blueOffset + (random.nextDouble() * blockSize)
@@ -130,7 +130,7 @@ public class SomBrainTest {
             final RealVector color1 = brain.getBestMatchingUnit(true);
 
             //get the location of the other color within the block
-            brain.setInput(
+            brain.input(
                     redOffset + (random.nextDouble() * blockSize),
                     greenOffset + (random.nextDouble() * blockSize),
                     blueOffset + (random.nextDouble() * blockSize)
@@ -166,23 +166,24 @@ public class SomBrainTest {
             final boolean isRed1Positive = random.nextBoolean();
             final boolean isGreen1Positive = random.nextBoolean();
             final boolean isBlue1Positive = random.nextBoolean();
-            brain.setInput(
+            
+            brain.input(
                 (isRed1Positive ? random.nextDouble() * maxDrift : 1.0 - (random.nextDouble() * maxDrift)),
                 (isGreen1Positive ? random.nextDouble()*maxDrift: 1.0 - (random.nextDouble() * maxDrift)),
                 (isBlue1Positive ? random.nextDouble() * maxDrift : 1.0 - (random.nextDouble() * maxDrift))
             );            
             
-            //outText.append("far color1... red:").append(brain.getInput(0)).append(", green: ").append(brain.getInput(1)).append(", blue").append(brain.getInput(2)).append('\n');
+            outText.append("far color1... red:").append(brain.inputSignal(0)).append(", green: ").append(brain.inputSignal(1)).append(", blue").append(brain.inputSignal(2)).append('\n');
             final RealVector color1 = brain.getBestMatchingUnit(true);
 
             //get the location of the other color within the block
-            brain.setInput(
+            brain.input(
                 (isRed1Positive ? 1.0 - (random.nextDouble() * maxDrift) : random.nextDouble() * maxDrift),
                 (isGreen1Positive ? 1.0 - (random.nextDouble()*maxDrift): random.nextDouble() * maxDrift),
                 (isBlue1Positive ? 1.0 - (random.nextDouble() * maxDrift) : random.nextDouble() * maxDrift)
             );     
            
-            //outText.append("far color2... red:").append(brain.getInput(0)).append(", green: ").append(brain.getInput(1)).append(", blue").append(brain.getInput(2)).append('\n');
+            outText.append("far color2... red:").append(brain.inputSignal(0)).append(", green: ").append(brain.inputSignal(1)).append(", blue").append(brain.inputSignal(2)).append('\n');
             final RealVector color2 = brain.getBestMatchingUnit(true);
             
             //calculate the distance between these two points
@@ -195,6 +196,8 @@ public class SomBrainTest {
                 closestDistanceFar = distance;
                 farOutText = outText.toString();
             }
+            //System.out.println(outText);
+            
         }
 
         

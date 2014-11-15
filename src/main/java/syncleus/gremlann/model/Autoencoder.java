@@ -17,6 +17,8 @@ import syncleus.gremlann.topology.adjacency.Adjacency.IntegerIndexedAdjacency;
 import syncleus.gremlann.topology.adjacency.RealMatrixAdjacency;
 
 /**
+ * 
+ * Denoising Autoencoder
  * TODO subclass implementation that uses synapses; currently this uses a hardcoded weight matrix
  */
 public class Autoencoder extends BipartiteBrain {

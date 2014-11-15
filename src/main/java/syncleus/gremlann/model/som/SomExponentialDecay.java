@@ -29,10 +29,10 @@ public class SomExponentialDecay implements SomModel {
     }
 
 
-    double getInitialRadius(SomBrain som) {
+    double getInitialRadius(SOM som) {
         double maxCrossSection = 0.0;
         
-        //TODO create SomBrain.getCrossSection() method
+        //TODO create SOM.getCrossSection() method
         
         for (int dimensionIndex = 0; dimensionIndex < som.getDimension(); dimensionIndex++) {
             
@@ -44,7 +44,7 @@ public class SomExponentialDecay implements SomModel {
         return maxCrossSection / 2.0;
     }
 
-    double getTimeConstant(SomBrain som) {
+    double getTimeConstant(SOM som) {
         return this.iterationsToConverge / Math.log(this.getInitialRadius(som));
     }
 
@@ -58,7 +58,7 @@ public class SomExponentialDecay implements SomModel {
      * @since 2.0
      */
     @Override
-    public double neighborhoodFunction(SomBrain som, final double distanceFromBest) {      
+    public double neighborhoodFunction(SOM som, final double distanceFromBest) {      
         return Math.exp(-1.0 * (Math.pow(distanceFromBest, 2.0)) / (2.0 * Math.pow(this.neighborhoodRadiusFunction(som), 2.0)));
     }
 
@@ -70,7 +70,7 @@ public class SomExponentialDecay implements SomModel {
      * @since 2.0
      */
     @Override
-    public double neighborhoodRadiusFunction(SomBrain som) {
+    public double neighborhoodRadiusFunction(SOM som) {
         return getInitialRadius(som) * Math.exp(-1.0 * som.getIterationsTrained() / this.getTimeConstant(som));        
     }
 
@@ -81,7 +81,7 @@ public class SomExponentialDecay implements SomModel {
      * @since 2.0
      */
     @Override
-    public double learningRateFunction(SomBrain som) {        
+    public double learningRateFunction(SOM som) {        
         return this.initialLearningRate * Math.exp(-1.0 * som.getIterationsTrained() / this.getTimeConstant(som));
     }
 }

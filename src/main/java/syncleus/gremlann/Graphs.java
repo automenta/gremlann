@@ -40,6 +40,10 @@ public class Graphs {
         return existing;
     }
         
+    public static <C> Vertex set(Vertex e, Class<? extends C> c, C instance) {
+        ElementHelper.attachSingleProperties(e, c.getName(), instance);
+        return e;
+    }
 
     public static Vertex set(Vertex e, Object... keyValues) {
         ElementHelper.attachSingleProperties(e, keyValues);

@@ -1,6 +1,7 @@
 package syncleus.gremlann;
 
 import com.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import syncleus.gremlann.model.Perceptron;
@@ -23,11 +24,12 @@ public class TestXOR {
         //
         // Graph is constructed, just need to train and test our network now.
         //
-        final int maxCycles = 10000;
+        final int maxCycles = 100;
         final int completionPeriod = 50;
         final double maxError = 0.75;
+        int finished = 0;
         for (int cycle = maxCycles; cycle >= 0; cycle--) {
-            int finished = 0;
+            finished = 0;
             for (int in1 = -1; in1 <= 1; in1 += 2) {
                 for (int in2 = -1; in2 <= 1; in2 += 2) {
                     for (int in3 = -1; in3 <= 1; in3 += 2) {
@@ -40,7 +42,7 @@ public class TestXOR {
                         double error = training.train(new double[] { in1, in2, in3 }, new double[] { expectD } );
 
                         if (cycle % completionPeriod == 0) {
-                            System.out.println("error=" + error);
+                            //System.out.println("error=" + error);
                                     
                             if (error < maxError)
                                 finished++;
@@ -51,7 +53,8 @@ public class TestXOR {
             if (finished == 8)
                 break;
         }
-        
+        assertEquals(8, finished);
+            
     }
     
 }

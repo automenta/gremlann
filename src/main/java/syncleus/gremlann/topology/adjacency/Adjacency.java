@@ -20,9 +20,15 @@ import java.io.Serializable;
 public interface Adjacency<X> {
     
     public Iterable<Vertex> getInputs();
+    
     public Iterable<Vertex> getOutputs();
     
+    /**
+     * returns the value associated with the coordinate pair (source,target).
+     * null if that pair's value was not specified (ie. non-adjacent)
+     */
     public X get(Vertex source, Vertex target);
+    
     public void set(Vertex source, Vertex target, X x);
     
     public EdgeAdjacency toEdges(Graph g);
@@ -36,4 +42,21 @@ public interface Adjacency<X> {
         public void set(int source, int target, X x);
         
     }
+    
+
+    /** implementations can override this to traverse the adjacency faster; this is a default
+     * brute-force implementation  */
+    default public <Y> Y forEachInput(Vertex output, AdjacencyVisitor<X,Y> visitor, Y initialValue) {
+        Y y = initialValue;
+        for (Vertex input : getInputs()) {
+            X x = get(input, output);
+            if (x!=null) {
+                y = visitor.adjacency(input, output, x, y);
+            }
+        }        
+        return y;
+    }
+    
+    //TODO forEachOutput..
+    
 }
