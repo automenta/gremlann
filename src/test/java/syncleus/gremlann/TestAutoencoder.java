@@ -5,14 +5,12 @@
  */
 package syncleus.gremlann;
 
-import com.tinkerpop.gremlin.structure.Vertex;
 import com.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import java.util.ArrayList;
 import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
-import static syncleus.gremlann.AbstractBrain.signal;
 import static syncleus.gremlann.Graphs.unipolar;
 import syncleus.gremlann.model.Autoencoder;
 
@@ -49,11 +47,13 @@ public class TestAutoencoder {
                         
                         double error = e.train(new double[] { unipolar(bi), unipolar(bj), unipolar(bk), unipolar(expect) }, learningRate, 0);
                         
+                        
                         totalError += error;
                         
                     }
                 }
-            }            
+            }           
+            System.out.println(totalError);
             totalErrors.add(totalError);
         }
         

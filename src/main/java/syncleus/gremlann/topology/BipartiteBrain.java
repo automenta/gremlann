@@ -13,6 +13,7 @@ import java.util.List;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import syncleus.gremlann.AbstractBrain;
 import static syncleus.gremlann.AbstractBrain.signals;
+import syncleus.gremlann.Neuron;
 
 /**
  * Bipartite brain with only input and output layers
@@ -56,7 +57,7 @@ abstract public class BipartiteBrain extends AbstractBrain {
         ensureCorrectInputDimensions(d.length);
         
         for (int i = 0; i < d.length; i++) {
-            signal(inputs.get(i), d[i]);
+            Neuron.signal(inputs.get(i), d[i]);
         }
         return this;
     }
@@ -70,16 +71,16 @@ abstract public class BipartiteBrain extends AbstractBrain {
     }
     
     public double inputSignal(int i) {
-        return signal(getInputs().get(i));
+        return Neuron.signal(getInputs().get(i));
     }
     public void inputSignal(int i, double newValue) {
-        signal(getInputs().get(i), newValue);
+        Neuron.signal(getInputs().get(i), newValue);
     }
     public double outputSignal(int i) {
-        return signal(getOutputs().get(i));
+        return Neuron.signal(getOutputs().get(i));
     }
     public void outputSignal(int i, double newValue) {
-        signal(getOutputs().get(i), newValue);
+        Neuron.signal(getOutputs().get(i), newValue);
     }
 
     public int getInputCount() { return getInputs().size(); }

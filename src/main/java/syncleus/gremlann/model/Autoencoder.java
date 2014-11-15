@@ -11,6 +11,7 @@ import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
 import syncleus.gremlann.Graphs;
 import static syncleus.gremlann.Graphs.random;
+import syncleus.gremlann.Neuron;
 import syncleus.gremlann.topology.BipartiteBrain;
 
 /**
@@ -117,7 +118,7 @@ public class Autoencoder extends BipartiteBrain {
             if (sigmoid)
                 yi = sigmoid(yi);
             
-            signal(outputs.get(i), yi);                
+            Neuron.signal(outputs.get(i), yi);                
         }
         
         if (normalize) {
@@ -138,7 +139,7 @@ public class Autoencoder extends BipartiteBrain {
             }
             
             zi += vbias[i];
-            signal(z.get(i), sigmoid(zi));
+            Neuron.signal(z.get(i), sigmoid(zi));
         }
     }
 
@@ -165,7 +166,7 @@ public class Autoencoder extends BipartiteBrain {
 
         // vbias
         for (int i = 0; i < getInputCount(); i++) {
-            L_vbias[i] = x[i] - signal(inputs.get(i));
+            L_vbias[i] = x[i] - Neuron.signal(inputs.get(i));
             vbias[i] += lr * L_vbias[i];
         }
 
@@ -183,7 +184,7 @@ public class Autoencoder extends BipartiteBrain {
         // W
         for (int i = 0; i < getOutputCount(); i++) {
             for (int j = 0; j < getInputCount(); j++) {
-                W[i][j] += lr * (L_hbias[i] * tilde_x[j] + L_vbias[j] * signal(outputs.get(i)));
+                W[i][j] += lr * (L_hbias[i] * tilde_x[j] + L_vbias[j] * Neuron.signal(outputs.get(i)));
             }
         }
                 

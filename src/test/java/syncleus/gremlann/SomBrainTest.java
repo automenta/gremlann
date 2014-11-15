@@ -18,7 +18,7 @@ import org.junit.Assert;
 import static org.junit.Assert.assertNotNull;
 import org.junit.Before;
 import org.junit.Test;
-import syncleus.gremlann.model.som.SOMExponentialDecay;
+import syncleus.gremlann.model.som.SomExponentialDecay;
 import syncleus.gremlann.model.som.SomBrain;
 
 public class SomBrainTest {
@@ -34,7 +34,7 @@ public class SomBrainTest {
     @Test
     public void testEmptySOM() throws Throwable {
         try {
-            SomBrain som = new SomBrain(graph.addVertex(), new SOMExponentialDecay(10, 0.1), 3, 4);
+            SomBrain som = new SomBrain(graph.addVertex(), new SomExponentialDecay(10, 0.1), 3, 4);
 
             assertNotNull(som);
 
@@ -85,7 +85,7 @@ public class SomBrainTest {
         final int INPUT_DIMENSIONS = 3;
 
         //initialize brain with 3d input and 2d output
-        SomBrain brain = new SomBrain(graph.addVertex(), new SOMExponentialDecay(TRAIN_ITERATIONS, LEARNING_RATE), OUTPUT_DIMENSIONS, INPUT_DIMENSIONS);
+        SomBrain brain = new SomBrain(graph.addVertex(), new SomExponentialDecay(TRAIN_ITERATIONS, LEARNING_RATE), OUTPUT_DIMENSIONS, INPUT_DIMENSIONS);
         
 
         //create the output latice

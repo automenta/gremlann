@@ -19,9 +19,10 @@ import java.util.Set;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
 import syncleus.gremlann.Graphs;
-import static syncleus.gremlann.Graphs.doubles;
 import static syncleus.gremlann.Graphs.set;
-import syncleus.gremlann.Synapses;
+import static syncleus.gremlann.Graphs.the;
+import syncleus.gremlann.Neuron;
+import syncleus.gremlann.Synapse;
 import syncleus.gremlann.activation.ActivationFunction;
 import syncleus.gremlann.activation.ActivationFunctions;
 import syncleus.gremlann.activation.SqrtActivationFunction;
@@ -100,7 +101,7 @@ public class SomBrain extends BipartiteBrain {
         Vertex output = newNeuronVertex("output", meta.graph());
         outputs.add(output);
         
-        set(output, "position", doubles(position));
+        setPosition(output, position);
         
         // connect all inputs to the new neuron
         for (final Vertex input : this.getInputs()) {            
@@ -163,7 +164,8 @@ public class SomBrain extends BipartiteBrain {
         return iterationsTrained;
     }
 
-            
+
+    
     public final Set<RealVector> getPositions() {
         return getPositions(true);
     }
@@ -209,7 +211,7 @@ public class SomBrain extends BipartiteBrain {
             
             if ((bestMatchingUnit == null) || (outputSignal < bestMatch)) {
                 bestMatchingUnit = neuron;
-                bestMatch = outputSignal;                
+                bestMatch = outputSignal;
             }
         }
         
@@ -243,8 +245,8 @@ public class SomBrain extends BipartiteBrain {
                 
                 //source.setWeight(source.getWeight() + (learningRate * neighborhoodAdjustment * (source.getInput() - source.getWeight())));
 
-               double w = weight(synapse);
-               weight(synapse, w + (learningRate * neighborhoodAdjustment * (signal(sourceInput) - w)));
+               double w = Synapse.weight(synapse);
+                Synapse.weight(synapse, w + (learningRate * neighborhoodAdjustment * (Neuron.signal(sourceInput) - w)));
             }
             
             return true;
@@ -266,16 +268,16 @@ public class SomBrain extends BipartiteBrain {
         GraphTraversal<Vertex, Edge> sources = v.inE("synapse");
         while (sources.hasNext()) {
             Edge source = sources.next();
-            double a = Synapses.propagate(source);
+            double a = Synapse.propagate(source);
             //activity += Math.pow(source.getSignal() - source.getWeight(), 2.0);
-            activity += Math.pow(a - weight(source), 2.0);
+            activity += Math.pow(a - Synapse.weight(source), 2.0);
         }
 
-        activity(v, activity);
+        Neuron.activity(v, activity);
         
         // calculate the activity function and reset the result as the output        
         double s = getActivationFunction().activate(activity);        
-        signal(v, s);        
+        Neuron.signal(v, s);        
         return s;        
     }    
 
@@ -302,9 +304,16 @@ public class SomBrain extends BipartiteBrain {
         input(d);
     }
     
-    public RealVector getPosition(Vertex output) {
-        return new ArrayRealVector((double[])output.value("position"));
+    public RealVector getPosition(Vertex output) {        
+        double[] p = the(output, SomOutput.class).getPosition();
+        if (p.length!=getDimension())
+            p = new double[ getDimension() ];
+        return new ArrayRealVector(p);
     }
+    public void setPosition(Vertex output, RealVector position) {
+        the(output, SomOutput.class).setPosition(position);
+    }
+    
     
 
     private void train(final RealVector bestMatchingUnit) {
@@ -347,7 +356,7 @@ public class SomBrain extends BipartiteBrain {
             GraphTraversal<Vertex, Edge> edges = currentNeuron.inE();
             while (edges.hasNext()) {
                 final Edge s = edges.next();
-                t.put(currentNeuron, s.outV().next(), weight(s));                
+                t.put(currentNeuron, s.outV().next(), Synapse.weight(s));                
             }
             
             // add the current weight vector to the map

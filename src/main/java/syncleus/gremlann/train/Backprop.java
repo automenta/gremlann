@@ -12,12 +12,12 @@ import com.tinkerpop.gremlin.structure.Vertex;
 import java.util.Set;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
-import static syncleus.gremlann.AbstractBrain.activity;
-import static syncleus.gremlann.AbstractBrain.signal;
-import static syncleus.gremlann.AbstractBrain.weight;
 import static syncleus.gremlann.Graphs.isTrue;
 import static syncleus.gremlann.Graphs.real;
 import static syncleus.gremlann.Graphs.set;
+import static syncleus.gremlann.Neuron.activity;
+import static syncleus.gremlann.Neuron.signal;
+import syncleus.gremlann.Synapse;
 import syncleus.gremlann.topology.LayerBrain;
 import syncleus.gremlann.activation.ActivationFunction;
 
@@ -55,7 +55,7 @@ public class Backprop {
                Edge synapse = et.get();           
                Vertex target = synapse.outV().next();
 
-               newDeltaTrain.addAndGet( weight(synapse) * deltaTrain(target) );           
+               newDeltaTrain.addAndGet( Synapse.weight(synapse) * deltaTrain(target) );           
             }).iterate();
 
             double ndt = newDeltaTrain.get() * getActivationFunction().activateDerivative(activity(neuron));
@@ -71,7 +71,7 @@ public class Backprop {
             Edge synapse = et.get();
             Vertex source = synapse.outV().next();
             
-            double curWeight = weight(synapse);
+            double curWeight = Synapse.weight(synapse);
             double sourceDelta = deltaTrain(neuron); 
             
             double newWeight = curWeight + (sourceDelta * learningRate(source) * signal(neuron));

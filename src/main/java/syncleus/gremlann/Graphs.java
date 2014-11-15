@@ -22,23 +22,37 @@ public class Graphs {
     
     public static void printVertex(Vertex v) {
         System.out.println(v.label() + ':' + v.toString() + "=>" + v.keys() );
-            //System.out.println(v.label() + ":" + v.toString() + "=" + m);
-        
+            //System.out.println(v.label() + ":" + v.toString() + "=" + m);        
     }
-    
+
+    public static <C> C the(Element e, Class<? extends C> c) {
+        String key = c.getName(); //.getSimpleName() is slow
+        C existing = e.value(key, (C)null);
+        
+        if (existing == null) {
+            try {
+                existing = c.newInstance();
+            } catch (Exception ex) {
+                throw new RuntimeException(ex.toString());
+            }
+            e.property(key, existing);
+        }
+        return existing;
+    }
+        
 
     public static Vertex set(Vertex e, Object... keyValues) {
         ElementHelper.attachSingleProperties(e, keyValues);
         return e;
     }
 
-    public static Element set(Element e, Object... keyValues) {
+    public static Element set(Element e, Object... keyValues) {        
         for (String k : ElementHelper.getKeys(keyValues)) {
             e.property(k).remove();
         }
         ElementHelper.attachProperties(e, keyValues);
         return e;
-    }    
+    }
     
     public static double real(Element e, String key) {
         return ((Number)e.value(key)).doubleValue();

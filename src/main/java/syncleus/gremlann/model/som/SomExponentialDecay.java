@@ -18,12 +18,12 @@
  ******************************************************************************/
 package syncleus.gremlann.model.som;
 
-public class SOMExponentialDecay implements SomModel {
+public class SomExponentialDecay implements SomModel {
     
     final int iterationsToConverge;
     final double initialLearningRate;
 
-    public SOMExponentialDecay(final int iterationsToConverge, final double initialLearningRate) {
+    public SomExponentialDecay(final int iterationsToConverge, final double initialLearningRate) {
         this.iterationsToConverge = iterationsToConverge;
         this.initialLearningRate = initialLearningRate;
     }

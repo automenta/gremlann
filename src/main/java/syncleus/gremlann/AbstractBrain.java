@@ -7,15 +7,14 @@ package syncleus.gremlann;
 
 import com.tinkerpop.gremlin.process.graph.GraphTraversal;
 import com.tinkerpop.gremlin.structure.Edge;
-import com.tinkerpop.gremlin.structure.Element;
 import com.tinkerpop.gremlin.structure.Graph;
 import com.tinkerpop.gremlin.structure.Vertex;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import static syncleus.gremlann.Graphs.printVertex;
-import static syncleus.gremlann.Graphs.real;
-import static syncleus.gremlann.Graphs.set;
+import static syncleus.gremlann.Graphs.the;
+import static syncleus.gremlann.Synapse.weight;
 import static syncleus.gremlann.topology.LayerBrain.newSignalVertex;
 
 abstract public class AbstractBrain {
@@ -28,7 +27,7 @@ abstract public class AbstractBrain {
         
         int j = 0;
         for (Vertex o : ll) {
-            d[j++] = signal(o);
+            d[j++] = Neuron.signal(o);
         }
         return r;        
     } 
@@ -40,7 +39,7 @@ abstract public class AbstractBrain {
         final double RANGE = 2.0;
         final double OFFSET = -1.0;
         final double SCALE = 0.1;
-        set(s, "weight", ((Math.random() * RANGE) + OFFSET) * SCALE);
+        weight(s, ((Math.random() * RANGE) + OFFSET) * SCALE);
         return s;
     }
 
@@ -67,16 +66,15 @@ abstract public class AbstractBrain {
         
     public static Vertex newSignalVertex(String label, Graph g, double initialValue) {
         Vertex v = g.addVertex(label);
-        v.property("signal", initialValue);
-        v.property("input", true);
+        the(v, Neuron.class).setSignal(initialValue);
+        v.property("input", true);    
         return v;
     }
 
 
     public static Vertex newNeuronVertex(String label, Graph g) {
         Vertex v = g.addVertex(label);
-        v.property("activity", 0);
-        v.property("signal", 0);
+        the(v, Neuron.class).setActivity(0).setSignal(0);        
         return v;
     }
     
@@ -85,19 +83,12 @@ abstract public class AbstractBrain {
     }
     
     
-    public static double weight(Edge e) {  return real(e, "weight");    }        
-    public static void weight(Edge e, double newWeight) {  set(e, "weight", newWeight);    }
     
-    public static double signal(Element v) {  return real(v, "signal");    }
-    public static void signal(Element v, double newValue) {  set(v, "signal", newValue);    }
-    
-    public static double activity(Vertex v) {  return real(v, "activity",0);    }
-    public static void activity(Vertex v, double newValue) {  set(v, "activity", newValue);    }
 
     public static double normalize(List<Vertex> y) {
         double max=0, min=0;
         for (int i = 0; i < y.size(); i++) {
-            double yi = signal(y.get(i));
+            double yi = Neuron.signal(y.get(i));
             if (i == 0)
                 max = min = yi;
             else {
@@ -107,8 +98,8 @@ abstract public class AbstractBrain {
         }
         if (max!=min) {
             for (int i = 0; i < y.size(); i++) {
-                double yi = signal(y.get(i));
-                signal(y.get(i), (yi-min)/(max-min));
+                double yi = Neuron.signal(y.get(i));
+                Neuron.signal(y.get(i), (yi-min)/(max-min));
             }
         }      
         return max-min;
