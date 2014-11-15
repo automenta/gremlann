@@ -15,7 +15,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import static syncleus.gremlann.Graphs.isTrue;
 import static syncleus.gremlann.Graphs.printVertex;
-import syncleus.gremlann.activation.ActivationFunction;
+import syncleus.gremlann.model.Perceptron;
 
 /**
  *
@@ -26,15 +26,11 @@ public class LayerBrainTest {
     @Test public void testLayerBrain1() {
         TinkerGraph g = TinkerGraph.open();
                 
-        LayerBrain b = new LayerBrain(g.addVertex(), 3,2,1) {
-            @Override public ActivationFunction getActivationFunction() {
-                throw new UnsupportedOperationException("Not supported yet.");
-            }            
-        };
+        LayerBrain b = new Perceptron(g.addVertex(), 3,2,1);
 
         assertEquals("output=0 on new unpropagated network", b.outputSignals().getL1Norm(), 0.0, 0.01);
         
-        b.input(false, 1,1,1);
+        b.input(true, 1,1,1);
         
         assertTrue("propagating some values will make output vector non-zero", b.outputSignals().getL1Norm() != 0.0);        
 

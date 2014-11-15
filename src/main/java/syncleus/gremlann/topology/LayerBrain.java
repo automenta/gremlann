@@ -8,8 +8,6 @@ package syncleus.gremlann.topology;
 import com.google.common.base.Function;
 import syncleus.gremlann.activation.ActivationFunction;
 import com.tinkerpop.gremlin.process.graph.GraphTraversal;
-import com.tinkerpop.gremlin.structure.Edge;
-import com.tinkerpop.gremlin.structure.Graph;
 import com.tinkerpop.gremlin.structure.Vertex;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -17,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import static syncleus.gremlann.Graphs.*;
+import syncleus.gremlann.Neuron;
 
 /**
  * Brain which is structured as layers
@@ -85,28 +84,27 @@ abstract public class LayerBrain extends BipartiteBrain {
 
     public static double inputActivity(Vertex neuron) {
         double signalSum = 0;
-        GraphTraversal<Vertex, Number> incomingSynapseOutputs = neuron.in("synapse").values("signal");
+        GraphTraversal<Vertex, Neuron> incomingSynapseOutputs = neuron.in("synapse").values(Neuron.class.getName());
         while (incomingSynapseOutputs.hasNext()) {
-            signalSum += incomingSynapseOutputs.next().doubleValue();
+            signalSum += incomingSynapseOutputs.next().getSignal();
         }
-        //neuron.property("activity", signalSum);
-        set(neuron, "activity", signalSum);
+        Neuron.activity(neuron, signalSum);
         return signalSum;
     }
 
     public double activate(Vertex neuron) {
         if (isTrue(neuron, "input")) {
             System.err.println("unnecessary activation: " + neuron);
-            return real(neuron, "signal");
+            return Neuron.signal(neuron);
         }
         
         double activity = inputActivity(neuron);
         
-        set(neuron, "activity", activity);
+        Neuron.activity(neuron, activity);
         
         //TODO select activation function from according to stored property in the neuron
         double signal = getActivationFunction().activate(activity);
-        set(neuron, "signal", signal);
+        Neuron.signal(neuron, signal);
         
         //System.out.println("activate: " + neuron.label() + " " + activity + " " + signal);
         
@@ -144,9 +142,9 @@ abstract public class LayerBrain extends BipartiteBrain {
     
     
     public void forward() {
-        traverseSignaledNeuronsForward().sideEffect(
-                n -> activate(n.get())
-        ).iterate();
+        traverseSignaledNeuronsForward().forEachRemaining(
+                n -> activate(n)
+        );//.iterate();
     }
 
     public void connectFully(List<Vertex> source, List<Vertex> target) {
